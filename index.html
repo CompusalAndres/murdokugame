@@ -33,6 +33,9 @@ button:disabled{opacity:.45;cursor:default}
 .ch.xb{--c:var(--text)}
 .ch.xb.sel{color:var(--bg)}
 .ch.nb{--c:#7846c8}
+.ch{position:relative}
+.cnt{position:absolute;right:3px;bottom:1px;font-size:.62rem;font-weight:700;line-height:1;color:var(--c);pointer-events:none}
+.ch.sel .cnt{color:#fff}
 .sep{width:1px;height:28px;background:var(--line);margin:0 4px}
 #msg{min-height:1.3em;font-size:.88rem;margin-top:8px;color:var(--text)}
 .stats{font-size:.88rem;color:var(--muted);margin-top:8px;word-break:break-word}
@@ -42,10 +45,8 @@ button:disabled{opacity:.45;cursor:default}
 #board img{display:block;width:100%;height:auto;pointer-events:none}
 #grid{position:absolute;display:grid}
 .cell{position:relative;container-type:inline-size;cursor:pointer;border:1px solid transparent;overflow:hidden}
-.cell:hover{background:rgba(255,255,255,.25)}
+@media (hover:hover){.cell:hover{outline:2px solid rgba(255,255,255,.85);outline-offset:-2px}}
 .calib .cell{border-color:rgba(255,0,200,.85)}
-.cell.has,.cell.hasb{background:rgba(255,255,255,.62)}
-.cell.hasb{background:rgba(255,255,255,.75)}
 .cell.isx{background:rgba(0,0,0,.12)}
 .cell.isn{background:var(--nc,rgba(110,110,110,.4))}
 select{padding:7px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);font-size:.95rem}
@@ -54,7 +55,8 @@ summary::-webkit-details-marker{display:none}
 summary::after{content:"▾";transition:transform .15s}
 details:not([open]) summary::after{transform:rotate(-90deg)}
 .mini{position:absolute;inset:5%;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr)}
-.mini span{display:flex;align-items:center;justify-content:center;font-weight:800;font-size:25cqw;line-height:1;color:var(--c)}
+.mini span{display:flex;align-items:center;justify-content:center;font-weight:800;font-size:25cqw;line-height:1;color:var(--c);text-shadow:0 0 2px #fff,0 0 2px #fff,0 0 3px #fff}
+.mini span.hl{font-size:50cqw;z-index:1;text-shadow:0 0 3px #fff,0 0 3px #fff}
 .big{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:72cqw;font-weight:900;line-height:1;color:var(--c);text-shadow:0 0 2px #fff,0 0 2px #fff}
 .xa,.xb2{position:absolute;left:10%;right:10%;top:50%;height:4px;margin-top:-2px;background:#000;border-radius:2px;transform:rotate(45deg);box-shadow:0 0 2px #fff}
 .xb2{transform:rotate(-45deg)}
@@ -76,8 +78,8 @@ details:not([open]) summary::after{transform:rotate(-90deg)}
       <label>Personajes (1–15)<input type="number" id="nch" min="1" max="15" step="1" value="5"></label>
       <label>Pulsación larga (s)<input type="number" id="hold" min="0.3" max="5" step="0.1" value="2"></label>
       <label>Casillas de ancho<input type="number" id="cols" min="1" max="100" step="0.05" value="9"></label>
-      <label>Desfase horizontal<input type="range" id="ox" min="0" max="0.99" step="0.01" value="0"></label>
-      <label>Desfase vertical<input type="range" id="oy" min="0" max="0.99" step="0.01" value="0"></label>
+      <label><span>Desfase horizontal: <b id="oxv">0.00</b></span><input type="range" id="ox" min="-0.99" max="0.99" step="0.01" value="0"></label>
+      <label><span>Desfase vertical: <b id="oyv">0.00</b></span><input type="range" id="oy" min="-0.99" max="0.99" step="0.01" value="0"></label>
       <label class="chk"><input type="checkbox" id="calib"> Rejilla de calibrado</label>
       <label class="chk"><input type="checkbox" id="coords"> Coordenadas</label>
       <label>Color no ocupable
@@ -92,9 +94,9 @@ details:not([open]) summary::after{transform:rotate(-90deg)}
           <option value="0,0,0">Negro</option>
         </select>
       </label>
-      <label>Opacidad del sombreado: <span id="ncv">40%</span><input type="range" id="ncop" min="5" max="90" step="5" value="40"></label>
+      <label><span>Opacidad del sombreado: <span id="ncv">40%</span></span><input type="range" id="ncop" min="5" max="90" step="5" value="40"></label>
     </div>
-    <div class="hint">Las casillas se suponen cuadradas y las filas se calculan según la forma de la foto. Si hay casillas cortadas en los bordes, ajusta los desfases (fracción de casilla sobrante arriba o a la izquierda) con la rejilla de calibrado activada.</div>
+    <div class="hint">Las casillas se suponen cuadradas y las filas se calculan según la forma de la foto. Si hay casillas cortadas en los bordes, ajusta los desfases con la rejilla de calibrado activada (positivo: corta parte de la primera casilla; negativo: deja un margen de foto sin casillas antes del origen).</div>
   </details>
 
   <div class="panel bar">
@@ -135,6 +137,7 @@ details:not([open]) summary::after{transform:rotate(-90deg)}
     if(!ready)return;
     var cols=parseFloat($('cols').value);if(!(cols>=1))cols=1;if(cols>100)cols=100;
     var ox=parseFloat($('ox').value)||0,oy=parseFloat($('oy').value)||0;
+    $('oxv').textContent=ox.toFixed(2);$('oyv').textContent=oy.toFixed(2);
     var nw=img.naturalWidth,nh=img.naturalHeight,cell=nw/cols;
     NC=Math.ceil(cols+ox-1e-6);NR=Math.ceil(nh/cell+oy-1e-6);
     var cwp=100/cols,chp=cell/nh*100;
@@ -154,9 +157,10 @@ details:not([open]) summary::after{transform:rotate(-90deg)}
   function renderPal(){
     var n=nch(),h='';
     if(sel!=='x'&&sel>=n)sel=0;
-    for(var i=0;i<n;i++)h+='<button class="ch'+(sel===i?' sel':'')+'" data-t="'+i+'" style="--c:'+color(i)+'">'+letter(i)+'</button>';
+    for(var i=0;i<n;i++)h+='<button class="ch'+(sel===i?' sel':'')+'" data-t="'+i+'" style="--c:'+color(i)+'">'+letter(i)+'<span class="cnt" data-i="'+i+'"></span></button>';
     h+='<span class="sep"></span><button class="ch xb'+(sel==='x'?' sel':'')+'" data-t="x" title="Sin personajes">✕</button><button class="ch nb'+(sel==='n'?' sel':'')+'" data-t="n" title="Casilla no ocupable">▨</button>';
     $('pal').innerHTML=h;
+    refresh();
   }
 
   function refresh(){
@@ -165,7 +169,7 @@ details:not([open]) summary::after{transform:rotate(-90deg)}
     var op=parseInt($('ncop').value,10)||40;
     $('ncv').textContent=op+'%';
     board.style.setProperty('--nc','rgba('+$('nccol').value+','+(op/100)+')');
-    var showCo=$('coords').checked,nx=0,nn=0,fixed={},els=grid.children;
+    var showCo=$('coords').checked,nx=0,nn=0,cnt={},fixed={},els=grid.children;
     for(var i=0;i<els.length;i++){
       var el=els[i],r=+el.dataset.r,c=+el.dataset.c,cell=cells.get(key(r,c)),h='',cls='cell';
       if(cell){
@@ -176,7 +180,7 @@ details:not([open]) summary::after{transform:rotate(-90deg)}
           cls+=' hasb';h+='<div class="big" style="--c:'+color(cell.b)+'">'+letter(cell.b)+'</div>';
           (fixed[cell.b]=fixed[cell.b]||[]).push(label(r,c));
         }else if(vm.length){
-          cls+=' has';h+='<div class="mini">'+vm.map(function(m){return '<span style="--c:'+color(m)+'">'+letter(m)+'</span>'}).join('')+'</div>';
+          cls+=' has';h+='<div class="mini">'+vm.map(function(m){cnt[m]=(cnt[m]||0)+1;return '<span'+(m===sel?' class="hl"':'')+' style="--c:'+color(m)+'">'+letter(m)+'</span>'}).join('')+'</div>';
         }
       }
       if(showCo)h+='<span class="co">'+label(r,c)+'</span>';
@@ -184,6 +188,7 @@ details:not([open]) summary::after{transform:rotate(-90deg)}
     }
     $('dim').textContent=NC+' × '+NR+' casillas';
     $('nx').textContent=nx;$('nn').textContent=nn;
+    Array.prototype.forEach.call(document.querySelectorAll('#pal .cnt'),function(s){var v=cnt[+s.dataset.i]||0;s.textContent=v?v:''});
     var f=Object.keys(fixed).map(function(k){return '<b>'+letter(+k)+'</b>: '+fixed[k].join(', ')});
     $('fixed').innerHTML=f.length?f.join(' · '):'–';
     $('undo').disabled=!hist.length;
