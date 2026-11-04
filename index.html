@@ -63,6 +63,8 @@ details:not([open]) summary::after{transform:rotate(-90deg)}
 .co{position:absolute;top:1px;left:3px;font-size:max(7px,13cqw);font-weight:600;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000;pointer-events:none;z-index:2}
 .cell.holding::after{content:"";position:absolute;left:0;right:0;bottom:0;height:0;background:rgba(47,111,237,.5);pointer-events:none;z-index:3;animation:fillup var(--hold,2s) linear forwards}
 @keyframes fillup{to{height:100%}}
+#toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);max-width:90vw;padding:10px 16px;border-radius:10px;background:#222;color:#fff;font-size:.88rem;opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
+#toast.show{opacity:1}
 .empty{padding:50px 16px;text-align:center;color:var(--muted);border:2px dashed var(--line);border-radius:12px}
 </style>
 </head>
@@ -82,6 +84,9 @@ details:not([open]) summary::after{transform:rotate(-90deg)}
       <label><span>Desfase vertical: <b id="oyv">0.00</b></span><input type="range" id="oy" min="-0.99" max="0.99" step="0.01" value="0"></label>
       <label class="chk"><input type="checkbox" id="calib"> Rejilla de calibrado</label>
       <label class="chk"><input type="checkbox" id="coords"> Coordenadas</label>
+      <label class="chk"><input type="checkbox" id="showmsg" checked> Mensajes de estado</label>
+      <label class="chk"><input type="checkbox" id="showstats" checked> Resumen inferior</label>
+      <label class="chk"><input type="checkbox" id="inclimg" checked> Incluir la foto al guardar</label>
       <label>Color no ocupable
         <select id="nccol">
           <option value="110,110,110">Gris</option>
@@ -104,18 +109,33 @@ details:not([open]) summary::after{transform:rotate(-90deg)}
     <div class="controls" style="margin-top:10px">
       <button id="undo" disabled>Deshacer</button>
       <button id="clear" disabled>Limpiar todo</button>
+      <span class="sep"></span>
+      <button id="save" disabled>Guardar</button>
+      <button id="load">Abrir</button>
+      <input type="file" id="loadfile" accept=".json,application/json" hidden>
     </div>
     <div id="msg" aria-live="polite">Toca una casilla para marcar el personaje elegido. Mantén pulsada para fijarlo.</div>
+  </div>
+
+  <div class="panel" id="jsonbox" style="display:none">
+    <div id="jsonnote" class="hint" style="margin:0 0 8px"></div>
+    <textarea id="jsontext" rows="6" style="width:100%;font-family:monospace;font-size:.75rem;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px"></textarea>
+    <div class="controls" style="margin-top:8px">
+      <button id="jcopy">Copiar</button>
+      <button id="jload">Cargar desde este texto</button>
+      <button id="jclose">Cerrar</button>
+    </div>
   </div>
 
   <div class="panel">
     <div id="empty" class="empty">Aún no hay foto. Pulsa «Adjuntar foto» para crear el tablero.</div>
     <div id="board"><img id="img" alt="Foto del tablero"><div id="grid"></div></div>
-    <div class="stats">Tablero: <b id="dim">–</b> · Casillas tachadas: <b id="nx">0</b> · No ocupables: <b id="nn">0</b></div>
-    <div class="stats">Personajes fijados: <span id="fixed">–</span></div>
+    <div id="statsbox"><div class="stats">Tablero: <b id="dim">–</b> · Casillas tachadas: <b id="nx">0</b> · No ocupables: <b id="nn">0</b></div>
+    <div class="stats">Personajes fijados: <span id="fixed">–</span></div></div>
   </div>
 </div>
 
+<div id="toast" role="status"></div>
 <script>
 (function(){
   var $=function(id){return document.getElementById(id)};
@@ -169,6 +189,8 @@ details:not([open]) summary::after{transform:rotate(-90deg)}
     var op=parseInt($('ncop').value,10)||40;
     $('ncv').textContent=op+'%';
     board.style.setProperty('--nc','rgba('+$('nccol').value+','+(op/100)+')');
+    $('msg').style.display=$('showmsg').checked?'':'none';
+    $('statsbox').style.display=$('showstats').checked?'':'none';
     var showCo=$('coords').checked,nx=0,nn=0,cnt={},fixed={},els=grid.children;
     for(var i=0;i<els.length;i++){
       var el=els[i],r=+el.dataset.r,c=+el.dataset.c,cell=cells.get(key(r,c)),h='',cls='cell';
@@ -193,6 +215,7 @@ details:not([open]) summary::after{transform:rotate(-90deg)}
     $('fixed').innerHTML=f.length?f.join(' · '):'–';
     $('undo').disabled=!hist.length;
     $('clear').disabled=!cells.size;
+    $('save').disabled=!ready;
   }
 
   function tap(r,c){
@@ -289,7 +312,7 @@ details:not([open]) summary::after{transform:rotate(-90deg)}
   $('clear').onclick=function(){snap();cells.clear();say('Tablero limpiado (puedes deshacerlo).');refresh()};
   $('nch').addEventListener('input',function(){renderPal();refresh()});
   ['cols','ox','oy'].forEach(function(id){$(id).addEventListener('input',build)});
-  ['hold','calib','coords','nccol','ncop'].forEach(function(id){$(id).addEventListener('input',refresh)});
+  ['hold','calib','coords','nccol','ncop','showmsg','showstats'].forEach(function(id){$(id).addEventListener('input',refresh)});
 
   document.addEventListener('keydown',function(e){
     if(/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
@@ -300,6 +323,73 @@ details:not([open]) summary::after{transform:rotate(-90deg)}
     else if(k==='0'){sel='n';renderPal()}
     else if(k.length===1&&k>='a'&&k<='o'){var i=k.charCodeAt(0)-97;if(i<nch()){sel=i;renderPal()}}
   });
+
+  var tt=0;
+  function toast(t){var el=$('toast');el.textContent=t;el.classList.add('show');clearTimeout(tt);tt=setTimeout(function(){el.classList.remove('show')},3200)}
+  function showBox(txt,note){$('jsonnote').textContent=note;$('jsontext').value=txt;$('jsonbox').style.display='';$('jsontext').focus();$('jsontext').select()}
+  function stateJSON(withImg){
+    var o={app:'tablero-personajes',v:1,params:{nch:nch(),hold:$('hold').value,cols:$('cols').value,ox:$('ox').value,oy:$('oy').value,nccol:$('nccol').value,ncop:$('ncop').value,calib:$('calib').checked,coords:$('coords').checked,showmsg:$('showmsg').checked,showstats:$('showstats').checked,sel:sel},cells:[]};
+    cells.forEach(function(cell,k){if(cell.m.length||cell.b>=0||cell.x||cell.n)o.cells.push([k,cell])});
+    if(withImg&&img.src)o.image=img.src;
+    return JSON.stringify(o);
+  }
+  async function saveGame(){
+    if(!ready){toast('Carga primero una foto.');return}
+    var txt=stateJSON($('inclimg').checked);
+    var fname='partida-tablero-'+new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')+'.json';
+    var dl=null;
+    try{dl=(window.claude&&window.claude.use)?await window.claude.use('downloads'):null}catch(_){dl=null}
+    if(!dl){showBox(txt,'No se puede descargar el archivo desde aquí. Copia este texto y guárdalo en un archivo .json.');return}
+    try{await dl.save({filename:fname,data:txt});toast('Partida guardada.')}
+    catch(err){
+      if(err&&err.code==='declined')toast('Guardado cancelado.');
+      else showBox(txt,'No se pudo descargar el archivo. Copia este texto y guárdalo en un archivo .json.');
+    }
+  }
+  function loadText(txt){
+    var o;
+    try{o=JSON.parse(txt)}catch(_){toast('El archivo no es un JSON válido.');return}
+    if(!o||o.app!=='tablero-personajes'){toast('Ese archivo no es una partida de este tablero.');return}
+    var p=o.params||{};
+    function setv(id,v){if(v!==undefined&&v!==null)$(id).value=v}
+    function setc(id,v){if(typeof v==='boolean')$(id).checked=v}
+    function go(){
+      setv('nch',p.nch);setv('hold',p.hold);setv('cols',p.cols);setv('ox',p.ox);setv('oy',p.oy);setv('nccol',p.nccol);setv('ncop',p.ncop);
+      setc('calib',p.calib);setc('coords',p.coords);setc('showmsg',p.showmsg);setc('showstats',p.showstats);
+      cells=new Map();
+      (Array.isArray(o.cells)?o.cells:[]).forEach(function(e){
+        if(!Array.isArray(e)||typeof e[0]!=='string'||!e[1])return;
+        var s=e[1];
+        cells.set(e[0],{m:Array.isArray(s.m)?s.m.filter(Number.isInteger):[],b:Number.isInteger(s.b)?s.b:-1,x:!!s.x,n:!!s.n});
+      });
+      hist=[];
+      sel=(p.sel==='x'||p.sel==='n'||Number.isInteger(p.sel))?p.sel:0;
+      ready=true;$('empty').style.display='none';board.style.display='block';
+      build();renderPal();
+      $('jsonbox').style.display='none';
+      toast('Partida cargada.');
+    }
+    if(typeof o.image==='string'&&o.image.indexOf('data:image/')===0){
+      if(img.src===o.image&&img.complete&&img.naturalWidth)go();
+      else{img.onload=go;img.src=o.image}
+    }else if(ready)go();
+    else toast('El archivo no incluye la foto: adjúntala primero y vuelve a abrirlo.');
+  }
+  $('save').onclick=saveGame;
+  $('load').onclick=function(){$('loadfile').click()};
+  $('loadfile').onchange=function(e){
+    var f=e.target.files&&e.target.files[0];if(!f)return;
+    var rd=new FileReader();rd.onload=function(){loadText(rd.result)};rd.readAsText(f);e.target.value='';
+  };
+  $('jcopy').onclick=function(){
+    var ta=$('jsontext');ta.select();
+    var done=function(ok){toast(ok?'Copiado al portapapeles.':'Selecciona el texto y cópialo a mano.')};
+    var legacy=function(){var ok=false;try{ok=document.execCommand('copy')}catch(_){}done(ok)};
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(ta.value).then(function(){done(true)},legacy);
+    else legacy();
+  };
+  $('jload').onclick=function(){loadText($('jsontext').value)};
+  $('jclose').onclick=function(){$('jsonbox').style.display='none'};
 
   $('file').onchange=function(e){
     var f=e.target.files&&e.target.files[0];if(!f)return;
