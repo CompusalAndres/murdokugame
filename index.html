@@ -1,411 +1,1302 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Tablero de personajes</title>
-<style>
-:root{--bg:#f6f5f1;--surface:#fff;--text:#1f1f1c;--muted:#6b6a64;--line:#d9d7cf;--accent:#2f6fed;
-box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17171a;--surface:#222226;--text:#ececea;--muted:#9a9a94;--line:#38383d;--accent:#6b97ff;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#17171a;--surface:#222226;--text:#ececea;--muted:#9a9a94;--line:#38383d;--accent:#6b97ff;color-scheme:dark}
-html{scroll-padding-top:env(safe-area-inset-top,0px)}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.4}
-body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
-.wrap{max-width:980px;margin:0 auto;padding:16px}
-h1{font-size:1.3rem;margin:0 0 4px}
-p.sub{margin:0 0 14px;color:var(--muted);font-size:.9rem}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:14px}
-.controls{display:flex;flex-wrap:wrap;gap:12px;align-items:end}
-label{display:flex;flex-direction:column;font-size:.78rem;color:var(--muted);gap:4px}
-input[type=number]{width:90px;padding:7px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);font-size:.95rem}
-input[type=range]{width:120px}
-.chk{flex-direction:row;align-items:center;gap:6px;color:var(--text);font-size:.88rem}
-button,.file{padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-size:.9rem;cursor:pointer}
-.file{background:var(--accent);border-color:var(--accent);color:#fff;flex-direction:row}
-.file input{display:none}
-button:disabled{opacity:.45;cursor:default}
-.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;box-shadow:0 2px 8px rgba(0,0,0,.12)}
-.pal{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.ch{min-width:40px;height:40px;padding:0;font-weight:800;font-size:1.05rem;color:var(--c);border:2px solid var(--c);background:var(--bg)}
-.ch.sel{background:var(--c);color:#fff}
-.ch.xb{--c:var(--text)}
-.ch.xb.sel{color:var(--bg)}
-.ch.nb{--c:#7846c8}
-.ch{position:relative}
-.cnt{position:absolute;right:3px;bottom:1px;font-size:.62rem;font-weight:700;line-height:1;color:var(--c);pointer-events:none}
-.ch.sel .cnt{color:#fff}
-.sep{width:1px;height:28px;background:var(--line);margin:0 4px}
-#msg{min-height:1.3em;font-size:.88rem;margin-top:8px;color:var(--text)}
-.stats{font-size:.88rem;color:var(--muted);margin-top:8px;word-break:break-word}
-.stats b{color:var(--text)}
-.hint{font-size:.8rem;color:var(--muted);margin-top:8px}
-#board{position:relative;display:none;width:100%;max-width:760px;margin:0 auto;overflow:hidden;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
-#board img{display:block;width:100%;height:auto;pointer-events:none}
-#grid{position:absolute;display:grid}
-.cell{position:relative;container-type:inline-size;cursor:pointer;border:1px solid transparent;overflow:hidden}
-@media (hover:hover){.cell:hover{outline:2px solid rgba(255,255,255,.85);outline-offset:-2px}}
-.calib .cell{border-color:rgba(255,0,200,.85)}
-.cell.isx{background:rgba(0,0,0,.12)}
-.cell.isn{background:var(--nc,rgba(110,110,110,.4))}
-select{padding:7px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);font-size:.95rem}
-summary{cursor:pointer;font-weight:600;font-size:.95rem;list-style:none;display:flex;justify-content:space-between;align-items:center}
-summary::-webkit-details-marker{display:none}
-summary::after{content:"▾";transition:transform .15s}
-details:not([open]) summary::after{transform:rotate(-90deg)}
-.mini{position:absolute;inset:5%;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr)}
-.mini span{display:flex;align-items:center;justify-content:center;font-weight:800;font-size:25cqw;line-height:1;color:var(--c);text-shadow:0 0 2px #fff,0 0 2px #fff,0 0 3px #fff}
-.mini span.hl{font-size:50cqw;z-index:1;text-shadow:0 0 3px #fff,0 0 3px #fff}
-.big{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:72cqw;font-weight:900;line-height:1;color:var(--c);text-shadow:0 0 2px #fff,0 0 2px #fff}
-.xa,.xb2{position:absolute;left:10%;right:10%;top:50%;height:4px;margin-top:-2px;background:#000;border-radius:2px;transform:rotate(45deg);box-shadow:0 0 2px #fff}
-.xb2{transform:rotate(-45deg)}
-.co{position:absolute;top:1px;left:3px;font-size:max(7px,13cqw);font-weight:600;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000;pointer-events:none;z-index:2}
-.cell.holding::after{content:"";position:absolute;left:0;right:0;bottom:0;height:0;background:rgba(47,111,237,.5);pointer-events:none;z-index:3;animation:fillup var(--hold,2s) linear forwards}
-@keyframes fillup{to{height:100%}}
-#toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);max-width:90vw;padding:10px 16px;border-radius:10px;background:#222;color:#fff;font-size:.88rem;opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
-#toast.show{opacity:1}
-.empty{padding:50px 16px;text-align:center;color:var(--muted);border:2px dashed var(--line);border-radius:12px}
-</style>
-</head>
-<body>
-<div class="wrap">
-  <h1>Tablero de personajes</h1>
-  <p class="sub">Adjunta la foto, elige un personaje y marca dónde puede estar.</p>
-
-  <details class="panel" id="params" open>
-    <summary>Parámetros</summary>
-    <div class="controls" style="margin-top:10px">
-      <label class="file">Adjuntar foto<input type="file" id="file" accept="image/*"></label>
-      <label>Personajes (1–15)<input type="number" id="nch" min="1" max="15" step="1" value="5"></label>
-      <label>Pulsación larga (s)<input type="number" id="hold" min="0.3" max="5" step="0.1" value="2"></label>
-      <label>Casillas de ancho<input type="number" id="cols" min="1" max="100" step="0.05" value="9"></label>
-      <label><span>Desfase horizontal: <b id="oxv">0.00</b></span><input type="range" id="ox" min="-0.99" max="0.99" step="0.01" value="0"></label>
-      <label><span>Desfase vertical: <b id="oyv">0.00</b></span><input type="range" id="oy" min="-0.99" max="0.99" step="0.01" value="0"></label>
-      <label class="chk"><input type="checkbox" id="calib"> Rejilla de calibrado</label>
-      <label class="chk"><input type="checkbox" id="coords"> Coordenadas</label>
-      <label class="chk"><input type="checkbox" id="showmsg" checked> Mensajes de estado</label>
-      <label class="chk"><input type="checkbox" id="showstats" checked> Resumen inferior</label>
-      <label class="chk"><input type="checkbox" id="inclimg" checked> Incluir la foto al guardar</label>
-      <label>Color no ocupable
-        <select id="nccol">
-          <option value="110,110,110">Gris</option>
-          <option value="47,111,237">Azul</option>
-          <option value="46,160,67">Verde</option>
-          <option value="240,200,20">Amarillo</option>
-          <option value="229,72,77">Rojo</option>
-          <option value="245,140,30">Naranja</option>
-          <option value="120,70,200">Violeta</option>
-          <option value="0,0,0">Negro</option>
-        </select>
-      </label>
-      <label><span>Opacidad del sombreado: <span id="ncv">40%</span></span><input type="range" id="ncop" min="5" max="90" step="5" value="40"></label>
-    </div>
-    <div class="hint">Las casillas se suponen cuadradas y las filas se calculan según la forma de la foto. Si hay casillas cortadas en los bordes, ajusta los desfases con la rejilla de calibrado activada (positivo: corta parte de la primera casilla; negativo: deja un margen de foto sin casillas antes del origen).</div>
-  </details>
-
-  <div class="panel bar">
-    <div class="pal" id="pal"></div>
-    <div class="controls" style="margin-top:10px">
-      <button id="undo" disabled>Deshacer</button>
-      <button id="clear" disabled>Limpiar todo</button>
-      <span class="sep"></span>
-      <button id="save" disabled>Guardar</button>
-      <button id="load">Abrir</button>
-      <input type="file" id="loadfile" accept=".json,application/json" hidden>
-    </div>
-    <div id="msg" aria-live="polite">Toca una casilla para marcar el personaje elegido. Mantén pulsada para fijarlo.</div>
-  </div>
-
-  <div class="panel" id="jsonbox" style="display:none">
-    <div id="jsonnote" class="hint" style="margin:0 0 8px"></div>
-    <textarea id="jsontext" rows="6" style="width:100%;font-family:monospace;font-size:.75rem;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px"></textarea>
-    <div class="controls" style="margin-top:8px">
-      <button id="jcopy">Copiar</button>
-      <button id="jload">Cargar desde este texto</button>
-      <button id="jclose">Cerrar</button>
-    </div>
-  </div>
-
-  <div class="panel">
-    <div id="empty" class="empty">Aún no hay foto. Pulsa «Adjuntar foto» para crear el tablero.</div>
-    <div id="board"><img id="img" alt="Foto del tablero"><div id="grid"></div></div>
-    <div id="statsbox"><div class="stats">Tablero: <b id="dim">–</b> · Casillas tachadas: <b id="nx">0</b> · No ocupables: <b id="nn">0</b></div>
-    <div class="stats">Personajes fijados: <span id="fixed">–</span></div></div>
-  </div>
-</div>
-
-<div id="toast" role="status"></div>
-<script>
-(function(){
-  var $=function(id){return document.getElementById(id)};
-  var grid=$('grid'),board=$('board'),img=$('img');
-  var cells=new Map(),hist=[],NC=0,NR=0,ready=false,sel=0,press=null;
-
-  function nch(){var n=parseInt($('nch').value,10);if(isNaN(n))n=1;return Math.max(1,Math.min(15,n))}
-  function letter(i){return String.fromCharCode(65+i)}
-  function color(i){return 'hsl('+(i*24)+',75%,38%)'}
-  function colName(n){var s='';n++;while(n>0){var m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=Math.floor((n-1)/26)}return s}
-  function label(r,c){return colName(c)+(r+1)}
-  function key(r,c){return r+','+c}
-  function get(r,c){var k=key(r,c);if(!cells.has(k))cells.set(k,{m:[],b:-1,x:false});return cells.get(k)}
-  function say(t){$('msg').textContent=t}
-  function snap(){hist.push(JSON.stringify(Array.from(cells.entries())));if(hist.length>300)hist.shift()}
-  function visMarks(cell){var n=nch();return cell.m.filter(function(i){return i<n})}
-
-  function build(){
-    if(!ready)return;
-    var cols=parseFloat($('cols').value);if(!(cols>=1))cols=1;if(cols>100)cols=100;
-    var ox=parseFloat($('ox').value)||0,oy=parseFloat($('oy').value)||0;
-    $('oxv').textContent=ox.toFixed(2);$('oyv').textContent=oy.toFixed(2);
-    var nw=img.naturalWidth,nh=img.naturalHeight,cell=nw/cols;
-    NC=Math.ceil(cols+ox-1e-6);NR=Math.ceil(nh/cell+oy-1e-6);
-    var cwp=100/cols,chp=cell/nh*100;
-    grid.style.left=(-ox*cwp)+'%';grid.style.top=(-oy*chp)+'%';
-    grid.style.width=(NC*cwp)+'%';grid.style.height=(NR*chp)+'%';
-    grid.style.gridTemplateColumns='repeat('+NC+',1fr)';
-    grid.style.gridTemplateRows='repeat('+NR+',1fr)';
-    grid.innerHTML='';
-    var frag=document.createDocumentFragment();
-    for(var r=0;r<NR;r++)for(var c=0;c<NC;c++){
-      var d=document.createElement('div');d.className='cell';d.dataset.r=r;d.dataset.c=c;frag.appendChild(d);
-    }
-    grid.appendChild(frag);
-    refresh();
-  }
-
-  function renderPal(){
-    var n=nch(),h='';
-    if(sel!=='x'&&sel>=n)sel=0;
-    for(var i=0;i<n;i++)h+='<button class="ch'+(sel===i?' sel':'')+'" data-t="'+i+'" style="--c:'+color(i)+'">'+letter(i)+'<span class="cnt" data-i="'+i+'"></span></button>';
-    h+='<span class="sep"></span><button class="ch xb'+(sel==='x'?' sel':'')+'" data-t="x" title="Sin personajes">✕</button><button class="ch nb'+(sel==='n'?' sel':'')+'" data-t="n" title="Casilla no ocupable">▨</button>';
-    $('pal').innerHTML=h;
-    refresh();
-  }
-
-  function refresh(){
-    board.classList.toggle('calib',$('calib').checked);
-    board.style.setProperty('--hold',(parseFloat($('hold').value)||2)+'s');
-    var op=parseInt($('ncop').value,10)||40;
-    $('ncv').textContent=op+'%';
-    board.style.setProperty('--nc','rgba('+$('nccol').value+','+(op/100)+')');
-    $('msg').style.display=$('showmsg').checked?'':'none';
-    $('statsbox').style.display=$('showstats').checked?'':'none';
-    var showCo=$('coords').checked,nx=0,nn=0,cnt={},fixed={},els=grid.children;
-    for(var i=0;i<els.length;i++){
-      var el=els[i],r=+el.dataset.r,c=+el.dataset.c,cell=cells.get(key(r,c)),h='',cls='cell';
-      if(cell){
-        var vm=visMarks(cell);
-        if(cell.n){cls+=' isn';nn++}
-        else if(cell.x){cls+=' isx';nx++;h+='<i class="xa"></i><i class="xb2"></i>'}
-        else if(cell.b>=0&&cell.b<nch()){
-          cls+=' hasb';h+='<div class="big" style="--c:'+color(cell.b)+'">'+letter(cell.b)+'</div>';
-          (fixed[cell.b]=fixed[cell.b]||[]).push(label(r,c));
-        }else if(vm.length){
-          cls+=' has';h+='<div class="mini">'+vm.map(function(m){cnt[m]=(cnt[m]||0)+1;return '<span'+(m===sel?' class="hl"':'')+' style="--c:'+color(m)+'">'+letter(m)+'</span>'}).join('')+'</div>';
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>Murdoku</title>
+    <style>
+      :root {
+        --bg: #f6f5f1;
+        --surface: #fff;
+        --text: #1f1f1c;
+        --muted: #6b6a64;
+        --line: #d9d7cf;
+        --accent: #2f6fed;
+        box-sizing: border-box;
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        color-scheme: light;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --bg: #17171a;
+          --surface: #222226;
+          --text: #ececea;
+          --muted: #9a9a94;
+          --line: #38383d;
+          --accent: #6b97ff;
+          color-scheme: dark;
         }
       }
-      if(showCo)h+='<span class="co">'+label(r,c)+'</span>';
-      el.className=cls;el.innerHTML=h;
-    }
-    $('dim').textContent=NC+' × '+NR+' casillas';
-    $('nx').textContent=nx;$('nn').textContent=nn;
-    Array.prototype.forEach.call(document.querySelectorAll('#pal .cnt'),function(s){var v=cnt[+s.dataset.i]||0;s.textContent=v?v:''});
-    var f=Object.keys(fixed).map(function(k){return '<b>'+letter(+k)+'</b>: '+fixed[k].join(', ')});
-    $('fixed').innerHTML=f.length?f.join(' · '):'–';
-    $('undo').disabled=!hist.length;
-    $('clear').disabled=!cells.size;
-    $('save').disabled=!ready;
-  }
+      :root[data-theme="dark"] {
+        --bg: #17171a;
+        --surface: #222226;
+        --text: #ececea;
+        --muted: #9a9a94;
+        --line: #38383d;
+        --accent: #6b97ff;
+        color-scheme: dark;
+      }
+      html {
+        scroll-padding-top: env(safe-area-inset-top, 0px);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        line-height: 1.4;
+      }
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0 0 auto;
+        height: env(safe-area-inset-top, 0px);
+        z-index: 10;
+        background: var(--bg);
+      }
+      .wrap {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 16px;
+      }
+      h1 {
+        font-size: 1.3rem;
+        margin: 0 0 4px;
+      }
+      p.sub {
+        margin: 0 0 14px;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        margin-bottom: 14px;
+      }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: end;
+      }
+      label {
+        display: flex;
+        flex-direction: column;
+        font-size: 0.78rem;
+        color: var(--muted);
+        gap: 4px;
+      }
+      input[type="number"] {
+        width: 90px;
+        padding: 7px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--text);
+        font-size: 0.95rem;
+      }
+      input[type="range"] {
+        width: 120px;
+      }
+      .chk {
+        flex-direction: row;
+        align-items: center;
+        gap: 6px;
+        color: var(--text);
+        font-size: 0.88rem;
+      }
+      button,
+      .file {
+        padding: 8px 14px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: var(--bg);
+        color: var(--text);
+        font-size: 0.9rem;
+        cursor: pointer;
+      }
+      .file {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+        flex-direction: row;
+      }
+      .file input {
+        display: none;
+      }
+      button:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
+      .bar {
+        position: sticky;
+        top: env(safe-area-inset-top, 0px);
+        z-index: 5;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+      }
+      .pal {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+      }
+      .ch {
+        min-width: 40px;
+        height: 40px;
+        padding: 0;
+        font-weight: 800;
+        font-size: 1.05rem;
+        color: var(--c);
+        border: 2px solid var(--c);
+        background: var(--bg);
+      }
+      .ch.sel {
+        background: var(--c);
+        color: #fff;
+      }
+      .ch.xb {
+        --c: var(--text);
+      }
+      .ch.xb.sel {
+        color: var(--bg);
+      }
+      .ch.nb {
+        --c: #7846c8;
+      }
+      .ch {
+        position: relative;
+      }
+      .cnt {
+        position: absolute;
+        right: 3px;
+        bottom: 1px;
+        font-size: 0.62rem;
+        font-weight: 700;
+        line-height: 1;
+        color: var(--c);
+        pointer-events: none;
+      }
+      .ch.sel .cnt {
+        color: #fff;
+      }
+      .sep {
+        width: 1px;
+        height: 28px;
+        background: var(--line);
+        margin: 0 4px;
+      }
+      #msg {
+        min-height: 1.3em;
+        font-size: 0.88rem;
+        margin-top: 8px;
+        color: var(--text);
+      }
+      .stats {
+        font-size: 0.88rem;
+        color: var(--muted);
+        margin-top: 8px;
+        word-break: break-word;
+      }
+      .stats b {
+        color: var(--text);
+      }
+      .hint {
+        font-size: 0.8rem;
+        color: var(--muted);
+        margin-top: 8px;
+      }
+      #board {
+        position: relative;
+        display: none;
+        width: 100%;
+        max-width: 760px;
+        margin: 0 auto;
+        overflow: hidden;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+        touch-action: manipulation;
+      }
+      #board img {
+        display: block;
+        width: 100%;
+        height: auto;
+        pointer-events: none;
+      }
+      #grid {
+        position: absolute;
+        display: grid;
+      }
+      .cell {
+        position: relative;
+        container-type: inline-size;
+        cursor: pointer;
+        border: 1px solid transparent;
+        overflow: hidden;
+      }
+      @media (hover: hover) {
+        .cell:hover {
+          outline: 2px solid rgba(255, 255, 255, 0.85);
+          outline-offset: -2px;
+        }
+      }
+      .calib .cell {
+        border-color: rgba(255, 0, 200, 0.85);
+      }
+      .cell.isx {
+        background: rgba(0, 0, 0, 0.12);
+      }
+      .cell.isn {
+        background: var(--nc, rgba(110, 110, 110, 0.4));
+      }
+      select {
+        padding: 7px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--text);
+        font-size: 0.95rem;
+      }
+      summary {
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.95rem;
+        list-style: none;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      summary::-webkit-details-marker {
+        display: none;
+      }
+      summary::after {
+        content: "▾";
+        transition: transform 0.15s;
+      }
+      details:not([open]) summary::after {
+        transform: rotate(-90deg);
+      }
+      .mini {
+        position: absolute;
+        inset: 5%;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: repeat(3, 1fr);
+      }
+      .mini span {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 25cqw;
+        line-height: 1;
+        color: var(--c);
+        text-shadow:
+          0 0 2px #fff,
+          0 0 2px #fff,
+          0 0 3px #fff;
+      }
+      .mini span.hl {
+        font-size: 50cqw;
+        z-index: 1;
+        text-shadow:
+          0 0 3px #fff,
+          0 0 3px #fff;
+      }
+      .big {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 72cqw;
+        font-weight: 900;
+        line-height: 1;
+        color: var(--c);
+        text-shadow:
+          0 0 2px #fff,
+          0 0 2px #fff;
+      }
+      .xa,
+      .xb2 {
+        position: absolute;
+        left: 10%;
+        right: 10%;
+        top: 50%;
+        height: 4px;
+        margin-top: -2px;
+        background: #000;
+        border-radius: 2px;
+        transform: rotate(45deg);
+        box-shadow: 0 0 2px #fff;
+      }
+      .xb2 {
+        transform: rotate(-45deg);
+      }
+      .co {
+        position: absolute;
+        top: 1px;
+        left: 3px;
+        font-size: max(7px, 13cqw);
+        font-weight: 600;
+        color: #fff;
+        text-shadow:
+          0 0 3px #000,
+          0 0 3px #000;
+        pointer-events: none;
+        z-index: 2;
+      }
+      .cell.holding::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 0;
+        background: rgba(47, 111, 237, 0.5);
+        pointer-events: none;
+        z-index: 3;
+        animation: fillup var(--hold, 2s) linear forwards;
+      }
+      @keyframes fillup {
+        to {
+          height: 100%;
+        }
+      }
+      #toast {
+        position: fixed;
+        left: 50%;
+        bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+        transform: translateX(-50%);
+        max-width: 90vw;
+        padding: 10px 16px;
+        border-radius: 10px;
+        background: #222;
+        color: #fff;
+        font-size: 0.88rem;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s;
+        z-index: 20;
+      }
+      #toast.show {
+        opacity: 1;
+      }
+      .empty {
+        padding: 50px 16px;
+        text-align: center;
+        color: var(--muted);
+        border: 2px dashed var(--line);
+        border-radius: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Murdoku</h1>
+      <p class="sub">
+        Adjunta la foto, elige un personaje y marca dónde puede estar.
+      </p>
 
-  function tap(r,c){
-    var cell=get(r,c),L=label(r,c);
-    if(sel==='n'){
-      snap();
-      if(cell.n){cell.n=false;say(L+' vuelve a ser ocupable.')}
-      else{cell.n=true;cell.m=[];cell.b=-1;cell.x=false;say(L+': casilla no ocupable.')}
-    }else if(cell.n){say(L+' es no ocupable. Quita antes el sombreado con la herramienta ▨.');return}
-    else if(sel==='x'){
-      snap();
-      if(cell.x){cell.x=false;say('Quitada la X de '+L+'.')}
-      else{cell.x=true;cell.m=[];cell.b=-1;say(L+': sin personajes (X).')}
-    }else if(cell.x){say(L+' está tachada. Quita primero la X con la herramienta ✕.');return}
-    else if(cell.b>=0){
-      if(cell.b===sel){snap();cell.b=-1;say('Quitada la marca grande '+letter(sel)+' de '+L+'.')}
-      else{say(L+' ya tiene fijado el personaje '+letter(cell.b)+'. Pulsa ese personaje para quitarlo.');return}
-    }else{
-      var p=cell.m.indexOf(sel);
-      if(p>=0){snap();cell.m.splice(p,1);say('Quitada la marca '+letter(sel)+' de '+L+'.')}
-      else if(visMarks(cell).length>=9){say(L+' ya tiene 9 marcas, el máximo.');return}
-      else{snap();cell.m.push(sel);cell.m.sort(function(a,b){return a-b});say('Marca '+letter(sel)+' en '+L+'.')}
-    }
-    refresh();
-  }
+      <details class="panel" id="params" open>
+        <summary>Ajustes</summary>
+        <div class="controls" style="margin-top: 10px">
+          <label class="file"
+            >Adjuntar foto<input type="file" id="file" accept="image/*"
+          /></label>
+          <label
+            >Personajes (1–15)<input
+              type="number"
+              id="nch"
+              min="1"
+              max="15"
+              step="1"
+              value="5"
+          /></label>
+          <label
+            >Pulsación larga (s)<input
+              type="number"
+              id="hold"
+              min="0.3"
+              max="5"
+              step="0.1"
+              value="2"
+          /></label>
+          <label
+            >Casillas de ancho<input
+              type="number"
+              id="cols"
+              min="1"
+              max="100"
+              step="0.05"
+              value="9"
+          /></label>
+          <label
+            ><span>Desfase horizontal: <b id="oxv">0.00</b></span
+            ><input
+              type="range"
+              id="ox"
+              min="-0.99"
+              max="0.99"
+              step="0.01"
+              value="0"
+          /></label>
+          <label
+            ><span>Desfase vertical: <b id="oyv">0.00</b></span
+            ><input
+              type="range"
+              id="oy"
+              min="-0.99"
+              max="0.99"
+              step="0.01"
+              value="0"
+          /></label>
+          <label class="chk"
+            ><input type="checkbox" id="calib" /> Rejilla de calibrado</label
+          >
+          <label class="chk"
+            ><input type="checkbox" id="coords" /> Coordenadas</label
+          >
+          <label class="chk"
+            ><input type="checkbox" id="showmsg" /> Mensajes de estado</label
+          >
+          <label class="chk"
+            ><input type="checkbox" id="showstats" /> Resumen inferior</label
+          >
+          <label class="chk"
+            ><input type="checkbox" id="inclimg" checked /> Incluir la foto al
+            guardar</label
+          >
+          <label
+            >Color no ocupable
+            <select id="nccol">
+              <option value="110,110,110">Gris</option>
+              <option value="47,111,237">Azul</option>
+              <option value="46,160,67">Verde</option>
+              <option value="240,200,20">Amarillo</option>
+              <option value="229,72,77">Rojo</option>
+              <option value="245,140,30">Naranja</option>
+              <option value="120,70,200">Violeta</option>
+              <option value="0,0,0">Negro</option>
+            </select>
+          </label>
+          <label
+            ><span>Opacidad del sombreado: <span id="ncv">40%</span></span
+            ><input type="range" id="ncop" min="5" max="90" step="5" value="40"
+          /></label>
+        </div>
+        <div class="controls" style="margin-top: 10px">
+          <button id="save" disabled>Guardar</button>
+          <button id="load">Abrir</button>
+          <button id="clear" disabled>Limpiar todo</button>
+          <input
+            type="file"
+            id="loadfile"
+            accept=".json,application/json"
+            hidden
+          />
+        </div>
+        <div class="hint">
+          Las casillas se suponen cuadradas y las filas se calculan según la
+          forma de la foto. Si hay casillas cortadas en los bordes, ajusta los
+          desfases con la rejilla de calibrado activada (positivo: corta parte
+          de la primera casilla; negativo: deja un margen de foto sin casillas
+          antes del origen).
+        </div>
+      </details>
 
-  function long(r,c){
-    var cell=get(r,c),L=label(r,c);
-    if(cell.n){say(L+' es no ocupable.');return}
-    if(cell.x){say(L+' está tachada. Quita primero la X.');return}
-    if(cell.b>=0&&cell.b!==sel){say(L+' ya tiene fijado el personaje '+letter(cell.b)+'.');return}
-    snap();
-    cell.b=sel;cell.m=[];
-    var n=0,skip=0,rem=0;
-    cells.forEach(function(o){if(o===cell)return;var p=o.m.indexOf(sel);if(p>=0){o.m.splice(p,1);rem++}});
-    function cross(rr,cc){
-      var o=get(rr,cc);
-      if(o.n)return;
-      if(o.b>=0){skip++;return}
-      if(!o.x)n++;
-      o.x=true;o.m=[];
-    }
-    for(var cc=0;cc<NC;cc++)if(cc!==c)cross(r,cc);
-    for(var rr=0;rr<NR;rr++)if(rr!==r)cross(rr,c);
-    say(letter(sel)+' fijado en '+L+'. Tachadas '+n+' casillas de su fila y columna'+(skip?' ('+skip+' con personaje fijado se han respetado)':'')+'.'+(rem?' Borradas '+rem+' mini marcas de '+letter(sel)+' en otras casillas.':''));
-    refresh();
-  }
+      <div class="panel bar">
+        <div class="pal" id="pal"></div>
+        <div class="controls" style="margin-top: 10px">
+          <button id="undo" disabled>Deshacer</button>
+        </div>
+        <div id="msg" aria-live="polite">
+          Toca una casilla para marcar el personaje elegido. Mantén pulsada para
+          fijarlo.
+        </div>
+      </div>
 
-  function cancelPress(){
-    if(!press)return;
-    clearTimeout(press.timer);press.el.classList.remove('holding');press=null;
-  }
+      <div class="panel" id="jsonbox" style="display: none">
+        <div id="jsonnote" class="hint" style="margin: 0 0 8px"></div>
+        <textarea
+          id="jsontext"
+          rows="6"
+          style="
+            width: 100%;
+            font-family: monospace;
+            font-size: 0.75rem;
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 8px;
+          "
+        ></textarea>
+        <div class="controls" style="margin-top: 8px">
+          <button id="jcopy">Copiar</button>
+          <button id="jload">Cargar desde este texto</button>
+          <button id="jclose">Cerrar</button>
+        </div>
+      </div>
 
-  grid.addEventListener('pointerdown',function(e){
-    var t=e.target.closest('.cell');if(!t||e.button>0)return;
-    cancelPress();
-    var r=+t.dataset.r,c=+t.dataset.c,p={el:t,r:r,c:c,x:e.clientX,y:e.clientY,fired:false,timer:0};
-    press=p;
-    var cell=cells.get(key(r,c));
-    if(typeof sel==='number'&&!(cell&&(cell.x||cell.n))){
-      t.classList.add('holding');
-      p.timer=setTimeout(function(){
-        p.fired=true;t.classList.remove('holding');
-        if(navigator.vibrate)try{navigator.vibrate(30)}catch(_){}
-        long(r,c);
-      },(parseFloat($('hold').value)||2)*1000);
-    }
-  });
-  grid.addEventListener('pointermove',function(e){
-    if(!press||press.fired)return;
-    if(Math.abs(e.clientX-press.x)+Math.abs(e.clientY-press.y)>14)cancelPress();
-  });
-  grid.addEventListener('pointerup',function(){
-    if(!press)return;
-    var p=press;clearTimeout(p.timer);p.el.classList.remove('holding');press=null;
-    if(!p.fired)tap(p.r,p.c);
-  });
-  grid.addEventListener('pointercancel',cancelPress);
-  grid.addEventListener('pointerleave',function(){if(press&&!press.fired)cancelPress()});
-  grid.addEventListener('contextmenu',function(e){e.preventDefault()});
+      <div class="panel">
+        <div id="empty" class="empty">
+          Aún no hay foto. Pulsa «Adjuntar foto» para crear el tablero.
+        </div>
+        <div id="board">
+          <img id="img" alt="Foto del tablero" />
+          <div id="grid"></div>
+        </div>
+        <div id="statsbox">
+          <div class="stats">
+            Tablero: <b id="dim">–</b> · Casillas tachadas: <b id="nx">0</b> ·
+            No ocupables: <b id="nn">0</b>
+          </div>
+          <div class="stats">Personajes fijados: <span id="fixed">–</span></div>
+        </div>
+      </div>
+    </div>
 
-  $('pal').addEventListener('click',function(e){
-    var b=e.target.closest('button');if(!b)return;
-    var t=b.dataset.t;sel=(t==='x'||t==='n')?t:+t;renderPal();
-    if(t==='x')say('Herramienta ✕: toca las casillas donde no hay personajes.');
-    else if(t==='n')say('Herramienta ▨: toca las casillas no ocupables para sombrearlas.');
-  });
+    <div id="toast" role="status"></div>
+    <script>
+      (function () {
+        var $ = function (id) {
+          return document.getElementById(id);
+        };
+        var grid = $("grid"),
+          board = $("board"),
+          img = $("img");
+        var cells = new Map(),
+          hist = [],
+          NC = 0,
+          NR = 0,
+          ready = false,
+          sel = 0,
+          press = null;
 
-  function undo(){
-    if(!hist.length)return;
-    cells=new Map(JSON.parse(hist.pop()));say('Acción deshecha.');refresh();
-  }
-  $('undo').onclick=undo;
-  $('clear').onclick=function(){snap();cells.clear();say('Tablero limpiado (puedes deshacerlo).');refresh()};
-  $('nch').addEventListener('input',function(){renderPal();refresh()});
-  ['cols','ox','oy'].forEach(function(id){$(id).addEventListener('input',build)});
-  ['hold','calib','coords','nccol','ncop','showmsg','showstats'].forEach(function(id){$(id).addEventListener('input',refresh)});
+        function nch() {
+          var n = parseInt($("nch").value, 10);
+          if (isNaN(n)) n = 1;
+          return Math.max(1, Math.min(15, n));
+        }
+        function letter(i) {
+          return String.fromCharCode(65 + i);
+        }
+        function color(i) {
+          return "hsl(" + (i === 21 ? 336 : i * 24) + ",75%,38%)";
+        }
+        function active(i) {
+          return i === 21 || i < nch() - 1;
+        }
+        function ids() {
+          var a = [],
+            n = nch();
+          for (var k = 0; k < n - 1; k++) a.push(k);
+          a.push(21);
+          return a;
+        }
+        function colName(n) {
+          var s = "";
+          n++;
+          while (n > 0) {
+            var m = (n - 1) % 26;
+            s = String.fromCharCode(65 + m) + s;
+            n = Math.floor((n - 1) / 26);
+          }
+          return s;
+        }
+        function label(r, c) {
+          return colName(c) + (r + 1);
+        }
+        function key(r, c) {
+          return r + "," + c;
+        }
+        function get(r, c) {
+          var k = key(r, c);
+          if (!cells.has(k)) cells.set(k, { m: [], b: -1, x: false });
+          return cells.get(k);
+        }
+        function say(t) {
+          $("msg").textContent = t;
+        }
+        function snap() {
+          hist.push(JSON.stringify(Array.from(cells.entries())));
+          if (hist.length > 300) hist.shift();
+        }
+        function visMarks(cell) {
+          return cell.m.filter(active);
+        }
 
-  document.addEventListener('keydown',function(e){
-    if(/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
-    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();return}
-    if(e.ctrlKey||e.metaKey||e.altKey)return;
-    var k=e.key.toLowerCase();
-    if(k==='x'){sel='x';renderPal()}
-    else if(k==='0'){sel='n';renderPal()}
-    else if(k.length===1&&k>='a'&&k<='o'){var i=k.charCodeAt(0)-97;if(i<nch()){sel=i;renderPal()}}
-  });
+        function build() {
+          if (!ready) return;
+          var cols = parseFloat($("cols").value);
+          if (!(cols >= 1)) cols = 1;
+          if (cols > 100) cols = 100;
+          var ox = parseFloat($("ox").value) || 0,
+            oy = parseFloat($("oy").value) || 0;
+          $("oxv").textContent = ox.toFixed(2);
+          $("oyv").textContent = oy.toFixed(2);
+          var nw = img.naturalWidth,
+            nh = img.naturalHeight,
+            cell = nw / cols;
+          NC = Math.ceil(cols + ox - 1e-6);
+          NR = Math.ceil(nh / cell + oy - 1e-6);
+          var cwp = 100 / cols,
+            chp = (cell / nh) * 100;
+          grid.style.left = -ox * cwp + "%";
+          grid.style.top = -oy * chp + "%";
+          grid.style.width = NC * cwp + "%";
+          grid.style.height = NR * chp + "%";
+          grid.style.gridTemplateColumns = "repeat(" + NC + ",1fr)";
+          grid.style.gridTemplateRows = "repeat(" + NR + ",1fr)";
+          grid.innerHTML = "";
+          var frag = document.createDocumentFragment();
+          for (var r = 0; r < NR; r++)
+            for (var c = 0; c < NC; c++) {
+              var d = document.createElement("div");
+              d.className = "cell";
+              d.dataset.r = r;
+              d.dataset.c = c;
+              frag.appendChild(d);
+            }
+          grid.appendChild(frag);
+          refresh();
+        }
 
-  var tt=0;
-  function toast(t){var el=$('toast');el.textContent=t;el.classList.add('show');clearTimeout(tt);tt=setTimeout(function(){el.classList.remove('show')},3200)}
-  function showBox(txt,note){$('jsonnote').textContent=note;$('jsontext').value=txt;$('jsonbox').style.display='';$('jsontext').focus();$('jsontext').select()}
-  function stateJSON(withImg){
-    var o={app:'tablero-personajes',v:1,params:{nch:nch(),hold:$('hold').value,cols:$('cols').value,ox:$('ox').value,oy:$('oy').value,nccol:$('nccol').value,ncop:$('ncop').value,calib:$('calib').checked,coords:$('coords').checked,showmsg:$('showmsg').checked,showstats:$('showstats').checked,sel:sel},cells:[]};
-    cells.forEach(function(cell,k){if(cell.m.length||cell.b>=0||cell.x||cell.n)o.cells.push([k,cell])});
-    if(withImg&&img.src)o.image=img.src;
-    return JSON.stringify(o);
-  }
-  async function saveGame(){
-    if(!ready){toast('Carga primero una foto.');return}
-    var txt=stateJSON($('inclimg').checked);
-    var fname='partida-tablero-'+new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')+'.json';
-    var dl=null;
-    try{dl=(window.claude&&window.claude.use)?await window.claude.use('downloads'):null}catch(_){dl=null}
-    if(!dl){showBox(txt,'No se puede descargar el archivo desde aquí. Copia este texto y guárdalo en un archivo .json.');return}
-    try{await dl.save({filename:fname,data:txt});toast('Partida guardada.')}
-    catch(err){
-      if(err&&err.code==='declined')toast('Guardado cancelado.');
-      else showBox(txt,'No se pudo descargar el archivo. Copia este texto y guárdalo en un archivo .json.');
-    }
-  }
-  function loadText(txt){
-    var o;
-    try{o=JSON.parse(txt)}catch(_){toast('El archivo no es un JSON válido.');return}
-    if(!o||o.app!=='tablero-personajes'){toast('Ese archivo no es una partida de este tablero.');return}
-    var p=o.params||{};
-    function setv(id,v){if(v!==undefined&&v!==null)$(id).value=v}
-    function setc(id,v){if(typeof v==='boolean')$(id).checked=v}
-    function go(){
-      setv('nch',p.nch);setv('hold',p.hold);setv('cols',p.cols);setv('ox',p.ox);setv('oy',p.oy);setv('nccol',p.nccol);setv('ncop',p.ncop);
-      setc('calib',p.calib);setc('coords',p.coords);setc('showmsg',p.showmsg);setc('showstats',p.showstats);
-      cells=new Map();
-      (Array.isArray(o.cells)?o.cells:[]).forEach(function(e){
-        if(!Array.isArray(e)||typeof e[0]!=='string'||!e[1])return;
-        var s=e[1];
-        cells.set(e[0],{m:Array.isArray(s.m)?s.m.filter(Number.isInteger):[],b:Number.isInteger(s.b)?s.b:-1,x:!!s.x,n:!!s.n});
-      });
-      hist=[];
-      sel=(p.sel==='x'||p.sel==='n'||Number.isInteger(p.sel))?p.sel:0;
-      ready=true;$('empty').style.display='none';board.style.display='block';
-      build();renderPal();
-      $('jsonbox').style.display='none';
-      toast('Partida cargada.');
-    }
-    if(typeof o.image==='string'&&o.image.indexOf('data:image/')===0){
-      if(img.src===o.image&&img.complete&&img.naturalWidth)go();
-      else{img.onload=go;img.src=o.image}
-    }else if(ready)go();
-    else toast('El archivo no incluye la foto: adjúntala primero y vuelve a abrirlo.');
-  }
-  $('save').onclick=saveGame;
-  $('load').onclick=function(){$('loadfile').click()};
-  $('loadfile').onchange=function(e){
-    var f=e.target.files&&e.target.files[0];if(!f)return;
-    var rd=new FileReader();rd.onload=function(){loadText(rd.result)};rd.readAsText(f);e.target.value='';
-  };
-  $('jcopy').onclick=function(){
-    var ta=$('jsontext');ta.select();
-    var done=function(ok){toast(ok?'Copiado al portapapeles.':'Selecciona el texto y cópialo a mano.')};
-    var legacy=function(){var ok=false;try{ok=document.execCommand('copy')}catch(_){}done(ok)};
-    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(ta.value).then(function(){done(true)},legacy);
-    else legacy();
-  };
-  $('jload').onclick=function(){loadText($('jsontext').value)};
-  $('jclose').onclick=function(){$('jsonbox').style.display='none'};
+        function renderPal() {
+          var h = "",
+            list = ids();
+          if (typeof sel === "number" && !active(sel)) sel = list[0];
+          list.forEach(function (i) {
+            h +=
+              '<button class="ch' +
+              (sel === i ? " sel" : "") +
+              '" data-t="' +
+              i +
+              '" style="--c:' +
+              color(i) +
+              '">' +
+              letter(i) +
+              '<span class="cnt" data-i="' +
+              i +
+              '"></span></button>';
+          });
+          h +=
+            '<span class="sep"></span><button class="ch xb' +
+            (sel === "x" ? " sel" : "") +
+            '" data-t="x" title="Sin personajes">✕</button><button class="ch nb' +
+            (sel === "n" ? " sel" : "") +
+            '" data-t="n" title="Casilla no ocupable">▨</button>';
+          $("pal").innerHTML = h;
+          refresh();
+        }
 
-  $('file').onchange=function(e){
-    var f=e.target.files&&e.target.files[0];if(!f)return;
-    var rd=new FileReader();
-    rd.onload=function(){
-      img.onload=function(){
-        ready=true;cells.clear();hist=[];
-        $('empty').style.display='none';board.style.display='block';build();
-        say('Foto cargada. Elige un personaje y toca las casillas.');
-      };
-      img.src=rd.result;
-    };
-    rd.readAsDataURL(f);
-  };
-  renderPal();
-})();
-</script>
-</body>
+        function refresh() {
+          board.classList.toggle("calib", $("calib").checked);
+          board.style.setProperty(
+            "--hold",
+            (parseFloat($("hold").value) || 2) + "s",
+          );
+          var op = parseInt($("ncop").value, 10) || 40;
+          $("ncv").textContent = op + "%";
+          board.style.setProperty(
+            "--nc",
+            "rgba(" + $("nccol").value + "," + op / 100 + ")",
+          );
+          $("msg").style.display = $("showmsg").checked ? "" : "none";
+          $("statsbox").style.display = $("showstats").checked ? "" : "none";
+          var showCo = $("coords").checked,
+            nx = 0,
+            nn = 0,
+            cnt = {},
+            fixed = {},
+            els = grid.children;
+          for (var i = 0; i < els.length; i++) {
+            var el = els[i],
+              r = +el.dataset.r,
+              c = +el.dataset.c,
+              cell = cells.get(key(r, c)),
+              h = "",
+              cls = "cell";
+            if (cell) {
+              var vm = visMarks(cell);
+              if (cell.n) {
+                cls += " isn";
+                nn++;
+              } else if (cell.x) {
+                cls += " isx";
+                nx++;
+                h += '<i class="xa"></i><i class="xb2"></i>';
+              } else if (cell.b >= 0 && active(cell.b)) {
+                cls += " hasb";
+                h +=
+                  '<div class="big" style="--c:' +
+                  color(cell.b) +
+                  '">' +
+                  letter(cell.b) +
+                  "</div>";
+                (fixed[cell.b] = fixed[cell.b] || []).push(label(r, c));
+              } else if (vm.length) {
+                cls += " has";
+                h +=
+                  '<div class="mini">' +
+                  vm
+                    .map(function (m) {
+                      cnt[m] = (cnt[m] || 0) + 1;
+                      return (
+                        "<span" +
+                        (m === sel ? ' class="hl"' : "") +
+                        ' style="--c:' +
+                        color(m) +
+                        '">' +
+                        letter(m) +
+                        "</span>"
+                      );
+                    })
+                    .join("") +
+                  "</div>";
+              }
+            }
+            if (showCo) h += '<span class="co">' + label(r, c) + "</span>";
+            el.className = cls;
+            el.innerHTML = h;
+          }
+          $("dim").textContent = NC + " × " + NR + " casillas";
+          $("nx").textContent = nx;
+          $("nn").textContent = nn;
+          Array.prototype.forEach.call(
+            document.querySelectorAll("#pal .cnt"),
+            function (s) {
+              var v = cnt[+s.dataset.i] || 0;
+              s.textContent = v ? v : "";
+            },
+          );
+          var f = Object.keys(fixed).map(function (k) {
+            return "<b>" + letter(+k) + "</b>: " + fixed[k].join(", ");
+          });
+          $("fixed").innerHTML = f.length ? f.join(" · ") : "–";
+          $("undo").disabled = !hist.length;
+          $("clear").disabled = !cells.size;
+          $("save").disabled = !ready;
+        }
+
+        function tap(r, c) {
+          var cell = get(r, c),
+            L = label(r, c);
+          if (sel === "n") {
+            snap();
+            if (cell.n) {
+              cell.n = false;
+              say(L + " vuelve a ser ocupable.");
+            } else {
+              cell.n = true;
+              cell.m = [];
+              cell.b = -1;
+              cell.x = false;
+              say(L + ": casilla no ocupable.");
+            }
+          } else if (cell.n) {
+            say(
+              L +
+                " es no ocupable. Quita antes el sombreado con la herramienta ▨.",
+            );
+            return;
+          } else if (sel === "x") {
+            snap();
+            if (cell.x) {
+              cell.x = false;
+              say("Quitada la X de " + L + ".");
+            } else {
+              cell.x = true;
+              cell.m = [];
+              cell.b = -1;
+              say(L + ": sin personajes (X).");
+            }
+          } else if (cell.x) {
+            say(L + " está tachada. Quita primero la X con la herramienta ✕.");
+            return;
+          } else if (cell.b >= 0) {
+            if (cell.b === sel) {
+              snap();
+              cell.b = -1;
+              say("Quitada la marca grande " + letter(sel) + " de " + L + ".");
+            } else {
+              say(
+                L +
+                  " ya tiene fijado el personaje " +
+                  letter(cell.b) +
+                  ". Pulsa ese personaje para quitarlo.",
+              );
+              return;
+            }
+          } else {
+            var p = cell.m.indexOf(sel);
+            if (p >= 0) {
+              snap();
+              cell.m.splice(p, 1);
+              say("Quitada la marca " + letter(sel) + " de " + L + ".");
+            } else if (visMarks(cell).length >= 9) {
+              say(L + " ya tiene 9 marcas, el máximo.");
+              return;
+            } else {
+              snap();
+              cell.m.push(sel);
+              cell.m.sort(function (a, b) {
+                return a - b;
+              });
+              say("Marca " + letter(sel) + " en " + L + ".");
+            }
+          }
+          refresh();
+        }
+
+        function long(r, c) {
+          var cell = get(r, c),
+            L = label(r, c);
+          if (cell.n) {
+            say(L + " es no ocupable.");
+            return;
+          }
+          if (cell.x) {
+            say(L + " está tachada. Quita primero la X.");
+            return;
+          }
+          if (cell.b >= 0 && cell.b !== sel) {
+            say(L + " ya tiene fijado el personaje " + letter(cell.b) + ".");
+            return;
+          }
+          snap();
+          cell.b = sel;
+          cell.m = [];
+          var n = 0,
+            skip = 0,
+            rem = 0;
+          cells.forEach(function (o) {
+            if (o === cell) return;
+            var p = o.m.indexOf(sel);
+            if (p >= 0) {
+              o.m.splice(p, 1);
+              rem++;
+            }
+          });
+          function cross(rr, cc) {
+            var o = get(rr, cc);
+            if (o.n) return;
+            if (o.b >= 0) {
+              skip++;
+              return;
+            }
+            if (!o.x) n++;
+            o.x = true;
+            o.m = [];
+          }
+          for (var cc = 0; cc < NC; cc++) if (cc !== c) cross(r, cc);
+          for (var rr = 0; rr < NR; rr++) if (rr !== r) cross(rr, c);
+          say(
+            letter(sel) +
+              " fijado en " +
+              L +
+              ". Tachadas " +
+              n +
+              " casillas de su fila y columna" +
+              (skip
+                ? " (" + skip + " con personaje fijado se han respetado)"
+                : "") +
+              "." +
+              (rem
+                ? " Borradas " +
+                  rem +
+                  " mini marcas de " +
+                  letter(sel) +
+                  " en otras casillas."
+                : ""),
+          );
+          refresh();
+        }
+
+        function cancelPress() {
+          if (!press) return;
+          clearTimeout(press.timer);
+          press.el.classList.remove("holding");
+          press = null;
+        }
+
+        grid.addEventListener("pointerdown", function (e) {
+          var t = e.target.closest(".cell");
+          if (!t || e.button > 0) return;
+          cancelPress();
+          var r = +t.dataset.r,
+            c = +t.dataset.c,
+            p = {
+              el: t,
+              r: r,
+              c: c,
+              x: e.clientX,
+              y: e.clientY,
+              fired: false,
+              timer: 0,
+            };
+          press = p;
+          var cell = cells.get(key(r, c));
+          if (typeof sel === "number" && !(cell && (cell.x || cell.n))) {
+            t.classList.add("holding");
+            p.timer = setTimeout(
+              function () {
+                p.fired = true;
+                t.classList.remove("holding");
+                if (navigator.vibrate)
+                  try {
+                    navigator.vibrate(30);
+                  } catch (_) {}
+                long(r, c);
+              },
+              (parseFloat($("hold").value) || 2) * 1000,
+            );
+          }
+        });
+        grid.addEventListener("pointermove", function (e) {
+          if (!press || press.fired) return;
+          if (
+            Math.abs(e.clientX - press.x) + Math.abs(e.clientY - press.y) >
+            14
+          )
+            cancelPress();
+        });
+        grid.addEventListener("pointerup", function () {
+          if (!press) return;
+          var p = press;
+          clearTimeout(p.timer);
+          p.el.classList.remove("holding");
+          press = null;
+          if (!p.fired) tap(p.r, p.c);
+        });
+        grid.addEventListener("pointercancel", cancelPress);
+        grid.addEventListener("pointerleave", function () {
+          if (press && !press.fired) cancelPress();
+        });
+        grid.addEventListener("contextmenu", function (e) {
+          e.preventDefault();
+        });
+
+        $("pal").addEventListener("click", function (e) {
+          var b = e.target.closest("button");
+          if (!b) return;
+          var t = b.dataset.t;
+          sel = t === "x" || t === "n" ? t : +t;
+          renderPal();
+          if (t === "x")
+            say("Herramienta ✕: toca las casillas donde no hay personajes.");
+          else if (t === "n")
+            say(
+              "Herramienta ▨: toca las casillas no ocupables para sombrearlas.",
+            );
+        });
+
+        function undo() {
+          if (!hist.length) return;
+          cells = new Map(JSON.parse(hist.pop()));
+          say("Acción deshecha.");
+          refresh();
+        }
+        $("undo").onclick = undo;
+        $("clear").onclick = function () {
+          snap();
+          cells.clear();
+          say("Tablero limpiado (puedes deshacerlo).");
+          refresh();
+        };
+        $("nch").addEventListener("input", function () {
+          renderPal();
+          refresh();
+        });
+        ["cols", "ox", "oy"].forEach(function (id) {
+          $(id).addEventListener("input", build);
+        });
+        [
+          "hold",
+          "calib",
+          "coords",
+          "nccol",
+          "ncop",
+          "showmsg",
+          "showstats",
+        ].forEach(function (id) {
+          $(id).addEventListener("input", refresh);
+        });
+
+        document.addEventListener("keydown", function (e) {
+          if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+          if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+            e.preventDefault();
+            undo();
+            return;
+          }
+          if (e.ctrlKey || e.metaKey || e.altKey) return;
+          var k = e.key.toLowerCase();
+          if (k === "x") {
+            sel = "x";
+            renderPal();
+          } else if (k === "0") {
+            sel = "n";
+            renderPal();
+          } else if (k.length === 1 && k >= "a" && k <= "z") {
+            var i = k.charCodeAt(0) - 97;
+            if (active(i)) {
+              sel = i;
+              renderPal();
+            }
+          }
+        });
+
+        var tt = 0;
+        function toast(t) {
+          var el = $("toast");
+          el.textContent = t;
+          el.classList.add("show");
+          clearTimeout(tt);
+          tt = setTimeout(function () {
+            el.classList.remove("show");
+          }, 3200);
+        }
+        function showBox(txt, note) {
+          $("jsonnote").textContent = note;
+          $("jsontext").value = txt;
+          $("jsonbox").style.display = "";
+          $("jsontext").focus();
+          $("jsontext").select();
+        }
+        function stateJSON(withImg) {
+          var o = {
+            app: "tablero-personajes",
+            v: 2,
+            params: {
+              nch: nch(),
+              hold: $("hold").value,
+              cols: $("cols").value,
+              ox: $("ox").value,
+              oy: $("oy").value,
+              nccol: $("nccol").value,
+              ncop: $("ncop").value,
+              calib: $("calib").checked,
+              coords: $("coords").checked,
+              sel: sel,
+            },
+            cells: [],
+            hist: hist.map(function (s) {
+              return JSON.parse(s);
+            }),
+          };
+          cells.forEach(function (cell, k) {
+            if (cell.m.length || cell.b >= 0 || cell.x || cell.n)
+              o.cells.push([k, cell]);
+          });
+          if (withImg && img.src) o.image = img.src;
+          return JSON.stringify(o);
+        }
+        async function saveGame() {
+          if (!ready) {
+            toast("Carga primero una foto.");
+            return;
+          }
+          var txt = stateJSON($("inclimg").checked);
+          var fname =
+            "murdoku-" +
+            new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-") +
+            ".json";
+          var dl = null;
+          try {
+            dl =
+              window.claude && window.claude.use
+                ? await window.claude.use("downloads")
+                : null;
+          } catch (_) {
+            dl = null;
+          }
+          if (!dl) {
+            showBox(
+              txt,
+              "No se puede descargar el archivo desde aquí. Copia este texto y guárdalo en un archivo .json.",
+            );
+            return;
+          }
+          try {
+            await dl.save({ filename: fname, data: txt });
+            toast("Partida guardada.");
+          } catch (err) {
+            if (err && err.code === "declined") toast("Guardado cancelado.");
+            else
+              showBox(
+                txt,
+                "No se pudo descargar el archivo. Copia este texto y guárdalo en un archivo .json.",
+              );
+          }
+        }
+        function loadText(txt) {
+          var o;
+          try {
+            o = JSON.parse(txt);
+          } catch (_) {
+            toast("El archivo no es un JSON válido.");
+            return;
+          }
+          if (!o || o.app !== "tablero-personajes") {
+            toast("Ese archivo no es una partida de este tablero.");
+            return;
+          }
+          var p = o.params || {};
+          function setv(id, v) {
+            if (v !== undefined && v !== null) $(id).value = v;
+          }
+          function setc(id, v) {
+            if (typeof v === "boolean") $(id).checked = v;
+          }
+          function go() {
+            setv("nch", p.nch);
+            setv("hold", p.hold);
+            setv("cols", p.cols);
+            setv("ox", p.ox);
+            setv("oy", p.oy);
+            setv("nccol", p.nccol);
+            setv("ncop", p.ncop);
+            setc("calib", p.calib);
+            setc("coords", p.coords);
+            var legacy = (o.v || 1) < 2,
+              last = (parseInt(p.nch, 10) || 1) - 1;
+            function mapId(i) {
+              return legacy && i === last ? 21 : i;
+            }
+            cells = new Map();
+            (Array.isArray(o.cells) ? o.cells : []).forEach(function (e) {
+              if (!Array.isArray(e) || typeof e[0] !== "string" || !e[1])
+                return;
+              var s = e[1];
+              cells.set(e[0], {
+                m: Array.isArray(s.m)
+                  ? s.m
+                      .filter(Number.isInteger)
+                      .map(mapId)
+                      .sort(function (a, b) {
+                        return a - b;
+                      })
+                  : [],
+                b: Number.isInteger(s.b) ? mapId(s.b) : -1,
+                x: !!s.x,
+                n: !!s.n,
+              });
+            });
+            hist = (Array.isArray(o.hist) ? o.hist : [])
+              .filter(Array.isArray)
+              .slice(-300)
+              .map(function (a) {
+                return JSON.stringify(a);
+              });
+            sel =
+              p.sel === "x" || p.sel === "n"
+                ? p.sel
+                : Number.isInteger(p.sel)
+                  ? mapId(p.sel)
+                  : 0;
+            ready = true;
+            $("empty").style.display = "none";
+            board.style.display = "block";
+            build();
+            renderPal();
+            $("jsonbox").style.display = "none";
+            toast("Partida cargada.");
+          }
+          if (
+            typeof o.image === "string" &&
+            o.image.indexOf("data:image/") === 0
+          ) {
+            if (img.src === o.image && img.complete && img.naturalWidth) go();
+            else {
+              img.onload = go;
+              img.src = o.image;
+            }
+          } else if (ready) go();
+          else
+            toast(
+              "El archivo no incluye la foto: adjúntala primero y vuelve a abrirlo.",
+            );
+        }
+        $("save").onclick = saveGame;
+        $("load").onclick = function () {
+          $("loadfile").click();
+        };
+        $("loadfile").onchange = function (e) {
+          var f = e.target.files && e.target.files[0];
+          if (!f) return;
+          var rd = new FileReader();
+          rd.onload = function () {
+            loadText(rd.result);
+          };
+          rd.readAsText(f);
+          e.target.value = "";
+        };
+        $("jcopy").onclick = function () {
+          var ta = $("jsontext");
+          ta.select();
+          var done = function (ok) {
+            toast(
+              ok
+                ? "Copiado al portapapeles."
+                : "Selecciona el texto y cópialo a mano.",
+            );
+          };
+          var legacy = function () {
+            var ok = false;
+            try {
+              ok = document.execCommand("copy");
+            } catch (_) {}
+            done(ok);
+          };
+          if (navigator.clipboard && navigator.clipboard.writeText)
+            navigator.clipboard.writeText(ta.value).then(function () {
+              done(true);
+            }, legacy);
+          else legacy();
+        };
+        $("jload").onclick = function () {
+          loadText($("jsontext").value);
+        };
+        $("jclose").onclick = function () {
+          $("jsonbox").style.display = "none";
+        };
+
+        $("file").onchange = function (e) {
+          var f = e.target.files && e.target.files[0];
+          if (!f) return;
+          var rd = new FileReader();
+          rd.onload = function () {
+            img.onload = function () {
+              ready = true;
+              cells.clear();
+              hist = [];
+              $("empty").style.display = "none";
+              board.style.display = "block";
+              build();
+              say("Foto cargada. Elige un personaje y toca las casillas.");
+            };
+            img.src = rd.result;
+          };
+          rd.readAsDataURL(f);
+        };
+        renderPal();
+      })();
+    </script>
+  </body>
 </html>
