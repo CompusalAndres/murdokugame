@@ -332,28 +332,78 @@
         left: 10%;
         right: 10%;
         top: 50%;
-        height: 4px;
-        margin-top: -2px;
+        height: 8px;
+        margin-top: -4px;
         background: #000;
-        border-radius: 2px;
+        border-radius: 4px;
         transform: rotate(45deg);
         box-shadow: 0 0 2px #fff;
       }
       .xb2 {
         transform: rotate(-45deg);
       }
-      .co {
+      #boardbox {
+        position: relative;
+        max-width: 760px;
+        margin: 0 auto;
+      }
+      #boardbox.coords {
+        max-width: calc(760px + 2.6rem);
+        padding: 1.7rem 0 0 2.6rem;
+      }
+      .axis {
+        display: none;
         position: absolute;
-        top: 1px;
-        left: 3px;
-        font-size: max(7px, 13cqw);
-        font-weight: 600;
-        color: #fff;
-        text-shadow:
-          0 0 3px #000,
-          0 0 3px #000;
         pointer-events: none;
-        z-index: 2;
+        font-size: clamp(0.78rem, 3vw, 1.05rem);
+        font-weight: 700;
+        line-height: 1;
+        color: var(--text);
+      }
+      #boardbox.coords .axis {
+        display: block;
+      }
+      #colLabels {
+        left: 2.6rem;
+        right: 0;
+        top: 0;
+        height: 1.7rem;
+      }
+      #rowLabels {
+        left: 0;
+        top: 1.7rem;
+        bottom: 0;
+        width: 2.6rem;
+      }
+      .axis span {
+        position: absolute;
+        white-space: nowrap;
+      }
+      #colLabels span {
+        bottom: 3px;
+        transform: translateX(-50%);
+      }
+      #rowLabels span {
+        right: 5px;
+        transform: translateY(-50%);
+      }
+      /* Botones Guardar/Restaurar compactos y de ancho estable */
+      .controls.tight {
+        gap: 6px;
+      }
+      .controls.tight button {
+        padding: 6px 8px;
+        font-size: 0.82rem;
+        white-space: nowrap;
+      }
+      .controls.tight .sep {
+        margin: 0 2px;
+      }
+      #cpsave {
+        min-width: 6.8em;
+      }
+      #cprestore {
+        min-width: 7.9em;
       }
       #toast {
         position: fixed;
@@ -430,9 +480,6 @@
               value="9"
           /></label>
           <label class="chk"
-            ><input type="checkbox" id="calib" /> Rejilla de calibrado</label
-          >
-          <label class="chk"
             ><input type="checkbox" id="coords" /> Coordenadas</label
           >
           <label class="chk"
@@ -462,6 +509,11 @@
             ><span>Opacidad del sombreado: <span id="ncv">40%</span></span
             ><input type="range" id="ncop" min="5" max="90" step="5" value="40"
           /></label>
+        </div>
+        <div class="controls" style="margin-top: 10px">
+          <label class="chk"
+            ><input type="checkbox" id="calib" /> Rejilla de calibrado</label
+          >
           <label
             ><span>Desfase horizontal: <b id="oxv">0.00</b></span
             ><input
@@ -505,7 +557,7 @@
 
       <div class="panel bar">
         <div class="pal" id="pal"></div>
-        <div class="controls" style="margin-top: 10px">
+        <div class="controls tight" style="margin-top: 10px">
           <button id="undo" disabled>Deshacer</button>
           <span class="sep"></span>
           <button
@@ -556,9 +608,13 @@
         <div id="empty" class="empty">
           Aún no hay foto. Pulsa «Adjuntar foto» para crear el tablero.
         </div>
-        <div id="board">
-          <img id="img" alt="Foto del tablero" />
-          <div id="grid"></div>
+        <div id="boardbox">
+          <div id="colLabels" class="axis"></div>
+          <div id="rowLabels" class="axis"></div>
+          <div id="board">
+            <img id="img" alt="Foto del tablero" />
+            <div id="grid"></div>
+          </div>
         </div>
         <div id="statsbox">
           <div class="stats">
@@ -625,18 +681,8 @@
           a.push(21);
           return a;
         }
-        function colName(n) {
-          var s = "";
-          n++;
-          while (n > 0) {
-            var m = (n - 1) % 26;
-            s = String.fromCharCode(65 + m) + s;
-            n = Math.floor((n - 1) / 26);
-          }
-          return s;
-        }
         function label(r, c) {
-          return colName(c) + (r + 1);
+          return "F" + (r + 1) + "C" + (c + 1);
         }
         function key(r, c) {
           return r + "," + c;
@@ -657,6 +703,43 @@
           return cell.m.filter(active);
         }
 
+        var geo = null;
+        // Etiquetas C1..Cn (arriba) y F1..Fn (a la izquierda), fuera del tablero
+        function drawAxes() {
+          var on = $("coords").checked && ready;
+          $("boardbox").classList.toggle("coords", on);
+          if (!on || !geo) return;
+          var h = "",
+            i,
+            lo,
+            hi;
+          for (i = 0; i < NC; i++) {
+            lo = Math.max(0, (i - geo.ox) * geo.cwp);
+            hi = Math.min(100, (i + 1 - geo.ox) * geo.cwp);
+            if (hi - lo > 0.5)
+              h +=
+                '<span style="left:' +
+                (lo + hi) / 2 +
+                '%">C' +
+                (i + 1) +
+                "</span>";
+          }
+          $("colLabels").innerHTML = h;
+          h = "";
+          for (i = 0; i < NR; i++) {
+            lo = Math.max(0, (i - geo.oy) * geo.chp);
+            hi = Math.min(100, (i + 1 - geo.oy) * geo.chp);
+            if (hi - lo > 0.5)
+              h +=
+                '<span style="top:' +
+                (lo + hi) / 2 +
+                '%">F' +
+                (i + 1) +
+                "</span>";
+          }
+          $("rowLabels").innerHTML = h;
+        }
+
         function build() {
           if (!ready) return;
           var cols = parseFloat($("cols").value);
@@ -673,6 +756,7 @@
           NR = Math.ceil(nh / cell + oy - 1e-6);
           var cwp = 100 / cols,
             chp = (cell / nh) * 100;
+          geo = { ox: ox, oy: oy, cwp: cwp, chp: chp };
           grid.style.left = -ox * cwp + "%";
           grid.style.top = -oy * chp + "%";
           grid.style.width = NC * cwp + "%";
@@ -690,6 +774,7 @@
               frag.appendChild(d);
             }
           grid.appendChild(frag);
+          drawAxes();
           refresh();
         }
 
@@ -735,8 +820,7 @@
           );
           $("msg").style.display = $("showmsg").checked ? "" : "none";
           $("statsbox").style.display = $("showstats").checked ? "" : "none";
-          var showCo = $("coords").checked,
-            nx = 0,
+          var nx = 0,
             nn = 0,
             cnt = {},
             fixed = {},
@@ -787,7 +871,7 @@
                   "</div>";
               }
             }
-            if (showCo) h += '<span class="co">' + label(r, c) + "</span>";
+
             el.className = cls;
             el.innerHTML = h;
           }
@@ -1194,8 +1278,6 @@
                 ? n - 1
                 : Math.max(n - 2, 0);
           $("cprestore").textContent = "Restaurar" + cpName(t);
-          var dbg = $("info_tablero_actual"); // elemento opcional de depuración
-          if (dbg) dbg.textContent = canonStr();
         }
         function cpSave() {
           if (!ready || cpStack.length >= CP_MAX) return;
@@ -1230,6 +1312,7 @@
         }
         $("cpsave").onclick = cpSave;
         $("cprestore").onclick = cpRestore;
+        $("coords").addEventListener("input", drawAxes);
 
         grid.addEventListener("contextmenu", function (e) {
           e.preventDefault();
