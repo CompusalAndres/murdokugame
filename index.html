@@ -389,21 +389,36 @@
       }
       /* Botones Guardar/Restaurar compactos y de ancho estable */
       .controls.tight {
-        gap: 6px;
+        gap: 4px;
       }
       .controls.tight button {
-        padding: 6px 8px;
-        font-size: 0.82rem;
+        padding: 6px 6px;
+        font-size: 0.78rem;
         white-space: nowrap;
       }
       .controls.tight .sep {
         margin: 0 2px;
       }
       #cpsave {
-        min-width: 6.8em;
+        min-width: 6.3em;
       }
       #cprestore {
-        min-width: 7.9em;
+        min-width: 7.4em;
+      }
+      #cpclear {
+        min-width: 0;
+        padding: 6px 7px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #cpclear svg {
+        display: block;
+      }
+      #cpclear.armed {
+        background: #e5484d;
+        border-color: #e5484d;
+        color: #fff;
       }
       #toast {
         position: fixed;
@@ -573,6 +588,29 @@
             title="Con cambios: vuelve al inicio del nivel actual. Sin cambios: pasa al nivel anterior"
           >
             Restaurar
+          </button>
+          <button
+            id="cpclear"
+            disabled
+            title="Borrar la pila de Guardar/Restaurar"
+            aria-label="Borrar la pila de Guardar/Restaurar"
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M3 6h18" />
+              <path d="M8 6V4h8v2" />
+              <path d="M6 6l1 14h10l1-14" />
+              <path d="M10 11v6M14 11v6" />
+            </svg>
           </button>
         </div>
         <div id="msg" aria-live="polite">
@@ -1229,6 +1267,7 @@
         // --- Puntos de guardado anidados (pila de hasta 5 niveles) ---
         var CP_MAX = 5;
         var cpStack = [];
+        var cpClearArmed = 0; // temporizador de la confirmación de la papelera
 
         // Representación canónica del tablero (independiente del orden de inserción)
         function canonStr() {
@@ -1268,6 +1307,12 @@
           $("cpsave").disabled = !ready || full;
           $("cpsave").textContent = full ? "Pila llena" : "Guardar" + cpName(n);
           $("cprestore").disabled = !ready || n === 0;
+          $("cpclear").disabled = !ready || n === 0;
+          if (n === 0) {
+            clearTimeout(cpClearArmed);
+            cpClearArmed = 0;
+            $("cpclear").classList.remove("armed");
+          }
           // Nivel al que llevará Restaurar (debe coincidir con cpRestore):
           //  - con cambios: inicio del nivel actual (entrada n-1)
           //  - sin cambios: punto anterior (entrada n-2); con una sola entrada se vuelve a T1
@@ -1312,6 +1357,26 @@
         }
         $("cpsave").onclick = cpSave;
         $("cprestore").onclick = cpRestore;
+        // Papelera: primer toque arma el botón (rojo) y el segundo, antes de 3 s, borra la pila.
+        $("cpclear").onclick = function () {
+          if (!cpStack.length) return;
+          var btn = $("cpclear");
+          if (!cpClearArmed) {
+            btn.classList.add("armed");
+            cpClearArmed = setTimeout(function () {
+              cpClearArmed = 0;
+              btn.classList.remove("armed");
+            }, 3000);
+            toast("Pulsa de nuevo la papelera para borrar los guardados.");
+            return;
+          }
+          clearTimeout(cpClearArmed);
+          cpClearArmed = 0;
+          btn.classList.remove("armed");
+          cpStack = [];
+          toast("Pila de guardados borrada.");
+          refresh();
+        };
         $("coords").addEventListener("input", drawAxes);
 
         grid.addEventListener("contextmenu", function (e) {
