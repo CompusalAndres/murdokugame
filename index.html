@@ -73,12 +73,7 @@
       }
       h1 {
         font-size: 1.3rem;
-        margin: 0 0 4px;
-      }
-      p.sub {
         margin: 0 0 14px;
-        color: var(--muted);
-        font-size: 0.9rem;
       }
       .panel {
         background: var(--surface);
@@ -229,7 +224,7 @@
         user-select: none;
         -webkit-user-select: none;
         -webkit-touch-callout: none;
-        touch-action: manipulation;
+        touch-action: none;
       }
       #board img {
         display: block;
@@ -408,9 +403,6 @@
   <body>
     <div class="wrap">
       <h1>Murdoku</h1>
-      <p class="sub">
-        Adjunta la foto, elige un personaje y marca dónde puede estar.
-      </p>
 
       <details class="panel" id="params" open>
         <summary>Ajustes</summary>
@@ -425,7 +417,7 @@
               min="1"
               max="15"
               step="1"
-              value="5"
+              value="9"
           /></label>
           <label
             >Pulsación larga (s)<input
@@ -434,7 +426,7 @@
               min="0.3"
               max="5"
               step="0.1"
-              value="2"
+              value="0.5"
           /></label>
           <label
             >Casillas de ancho<input
@@ -596,8 +588,25 @@
         function letter(i) {
           return String.fromCharCode(65 + i);
         }
+        // Paleta intensa: rojo, verde, azul, violeta, naranja y después sus combinaciones
+        var PALETTE = [
+          "#e00000", // A rojo
+          "#009b1a", // B verde
+          "#0040ff", // C azul
+          "#8a00d4", // D violeta
+          "#ff7a00", // E naranja
+          "#00a6c8", // F cian
+          "#e0009a", // G magenta
+          "#c79100", // H amarillo dorado
+          "#7b3f00", // I marrón
+          "#7cc400", // J lima
+          "#3399ff", // K celeste
+          "#00796b", // L verde azulado
+          "#8c0032", // M granate
+          "#6b6b00", // N oliva
+        ];
         function color(i) {
-          return "hsl(" + (i === 21 ? 336 : i * 24) + ",75%,38%)";
+          return i === 21 ? "#ff1493" : PALETTE[i] || "#000000";
         }
         function active(i) {
           return i === 21 || i < nch() - 1;
@@ -794,74 +803,101 @@
           $("save").disabled = !ready;
         }
 
-        function tap(r, c) {
+        function snapStr() {
+          return JSON.stringify(
+            Array.from(cells.entries()).filter(function (e) {
+              var c = e[1];
+              return c.m.length || c.b >= 0 || c.x || c.n;
+            }),
+          );
+        }
+
+        // Aplica la herramienta actual a una casilla, sin refrescar ni tocar el historial.
+        // mode: null = alternar (según el estado de esa casilla), "add" = poner, "remove" = quitar.
+        // Devuelve { mode, changed, msg }; mode es null si la casilla no admite la acción.
+        function paint(r, c, mode) {
           var cell = get(r, c),
             L = label(r, c);
+          function res(m, changed, msg) {
+            return { mode: m, changed: changed, msg: msg };
+          }
+          function want(has) {
+            return mode ? mode === "add" : !has;
+          }
           if (sel === "n") {
-            snap();
-            if (cell.n) {
-              cell.n = false;
-              say(L + " vuelve a ser ocupable.");
-            } else {
+            var wn = want(cell.n);
+            if (wn === !!cell.n) return res(wn ? "add" : "remove", false, "");
+            if (wn) {
               cell.n = true;
               cell.m = [];
               cell.b = -1;
               cell.x = false;
-              say(L + ": casilla no ocupable.");
+              return res("add", true, L + ": casilla no ocupable.");
             }
-          } else if (cell.n) {
-            say(
+            cell.n = false;
+            return res("remove", true, L + " vuelve a ser ocupable.");
+          }
+          if (cell.n)
+            return res(
+              null,
+              false,
               L +
                 " es no ocupable. Quita antes el sombreado con la herramienta ▨.",
             );
-            return;
-          } else if (sel === "x") {
-            snap();
-            if (cell.x) {
-              cell.x = false;
-              say("Quitada la X de " + L + ".");
-            } else {
+          if (sel === "x") {
+            var wx = want(cell.x);
+            if (wx === !!cell.x) return res(wx ? "add" : "remove", false, "");
+            if (wx) {
               cell.x = true;
               cell.m = [];
               cell.b = -1;
-              say(L + ": sin personajes (X).");
+              return res("add", true, L + ": sin personajes (X).");
             }
-          } else if (cell.x) {
-            say(L + " está tachada. Quita primero la X con la herramienta ✕.");
-            return;
-          } else if (cell.b >= 0) {
-            if (cell.b === sel) {
-              snap();
-              cell.b = -1;
-              say("Quitada la marca grande " + letter(sel) + " de " + L + ".");
-            } else {
-              say(
+            cell.x = false;
+            return res("remove", true, "Quitada la X de " + L + ".");
+          }
+          if (cell.x)
+            return res(
+              null,
+              false,
+              L + " está tachada. Quita primero la X con la herramienta ✕.",
+            );
+          if (cell.b >= 0) {
+            if (cell.b !== sel)
+              return res(
+                null,
+                false,
                 L +
                   " ya tiene fijado el personaje " +
                   letter(cell.b) +
                   ". Pulsa ese personaje para quitarlo.",
               );
-              return;
-            }
-          } else {
-            var p = cell.m.indexOf(sel);
-            if (p >= 0) {
-              snap();
-              cell.m.splice(p, 1);
-              say("Quitada la marca " + letter(sel) + " de " + L + ".");
-            } else if (visMarks(cell).length >= 9) {
-              say(L + " ya tiene 9 marcas, el máximo.");
-              return;
-            } else {
-              snap();
-              cell.m.push(sel);
-              cell.m.sort(function (a, b) {
-                return a - b;
-              });
-              say("Marca " + letter(sel) + " en " + L + ".");
-            }
+            if (mode === "add") return res("add", false, "");
+            cell.b = -1;
+            return res(
+              "remove",
+              true,
+              "Quitada la marca grande " + letter(sel) + " de " + L + ".",
+            );
           }
-          refresh();
+          var p = cell.m.indexOf(sel),
+            wm = want(p >= 0);
+          if (wm === p >= 0) return res(wm ? "add" : "remove", false, "");
+          if (!wm) {
+            cell.m.splice(p, 1);
+            return res(
+              "remove",
+              true,
+              "Quitada la marca " + letter(sel) + " de " + L + ".",
+            );
+          }
+          if (visMarks(cell).length >= 9)
+            return res(null, false, L + " ya tiene 9 marcas, el máximo.");
+          cell.m.push(sel);
+          cell.m.sort(function (a, b) {
+            return a - b;
+          });
+          return res("add", true, "Marca " + letter(sel) + " en " + L + ".");
         }
 
         function long(r, c) {
@@ -928,27 +964,76 @@
           refresh();
         }
 
-        function cancelPress() {
-          if (!press) return;
-          clearTimeout(press.timer);
-          press.el.classList.remove("holding");
+        // --- Gestos sobre el tablero: toque, arrastre y pulsación larga ---
+        function cellAt(x, y) {
+          var el = document.elementFromPoint(x, y);
+          var t = el && el.closest ? el.closest(".cell") : null;
+          return t && grid.contains(t) ? t : null;
+        }
+
+        function pushHistory(pre) {
+          if (snapStr() === pre) return;
+          hist.push(pre);
+          if (hist.length > 300) hist.shift();
+        }
+
+        function startDrag(p) {
+          p.dragging = true;
+          clearTimeout(p.timer);
+          p.el.classList.remove("holding");
+          var out = paint(p.r, p.c, null); // la primera casilla alterna y fija el modo
+          p.mode = out.mode || "add";
+          if (out.changed) p.n++;
+        }
+
+        function endPress(e) {
+          if (!press || (e && e.isPrimary === false)) return;
+          var p = press;
           press = null;
+          clearTimeout(p.timer);
+          p.el.classList.remove("holding");
+          if (p.fired) return; // la pulsación larga ya ha actuado por su cuenta
+          if (!p.dragging) {
+            if (e && e.type === "pointercancel") return;
+            say(paint(p.r, p.c, null).msg);
+          } else {
+            var what =
+              sel === "x"
+                ? "X"
+                : sel === "n"
+                  ? "casillas no ocupables"
+                  : "marcas de " + letter(sel);
+            say(
+              p.n
+                ? (p.mode === "remove" ? "Quitadas " : "Puestas ") +
+                    p.n +
+                    " " +
+                    what +
+                    " arrastrando."
+                : "Sin cambios al arrastrar.",
+            );
+          }
+          pushHistory(p.pre);
+          refresh();
         }
 
         grid.addEventListener("pointerdown", function (e) {
           var t = e.target.closest(".cell");
-          if (!t || e.button > 0) return;
-          cancelPress();
+          if (!t || e.button > 0 || e.isPrimary === false) return;
+          if (press) endPress();
           var r = +t.dataset.r,
             c = +t.dataset.c,
             p = {
               el: t,
+              last: t,
               r: r,
               c: c,
-              x: e.clientX,
-              y: e.clientY,
               fired: false,
+              dragging: false,
+              mode: null,
+              n: 0,
               timer: 0,
+              pre: snapStr(),
             };
           press = p;
           var cell = cells.get(key(r, c));
@@ -969,25 +1054,17 @@
           }
         });
         grid.addEventListener("pointermove", function (e) {
-          if (!press || press.fired) return;
-          if (
-            Math.abs(e.clientX - press.x) + Math.abs(e.clientY - press.y) >
-            14
-          )
-            cancelPress();
-        });
-        grid.addEventListener("pointerup", function () {
-          if (!press) return;
           var p = press;
-          clearTimeout(p.timer);
-          p.el.classList.remove("holding");
-          press = null;
-          if (!p.fired) tap(p.r, p.c);
+          if (!p || p.fired || e.isPrimary === false) return;
+          var t = cellAt(e.clientX, e.clientY);
+          if (!t || t === p.last) return;
+          p.last = t;
+          if (!p.dragging) startDrag(p);
+          if (paint(+t.dataset.r, +t.dataset.c, p.mode).changed) p.n++;
+          refresh();
         });
-        grid.addEventListener("pointercancel", cancelPress);
-        grid.addEventListener("pointerleave", function () {
-          if (press && !press.fired) cancelPress();
-        });
+        document.addEventListener("pointerup", endPress);
+        document.addEventListener("pointercancel", endPress);
         grid.addEventListener("contextmenu", function (e) {
           e.preventDefault();
         });
